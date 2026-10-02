@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model coleta {
+  coleta_id        Int      @id @default(autoincrement())
+  coleta_volume_ml Int
+  coleta_data_hora DateTime @db.DateTime(0)
+  coleta_status    Int
+  doacao_id        Int
+  funcionario_id   Int
+  doacao           doacao   @relation(fields: [doacao_id], references: [doacao_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_coleta_doacao1")
+
+  @@index([doacao_id], map: "fk_coleta_doacao1_idx")
+  @@index([funcionario_id], map: "idx_coleta_funcionario")
+}
+
+model doacao {
+  doacao_id                Int                           @id @default(autoincrement())
+  doacao_codigo_bolsa      String                        @db.VarChar(20)
+  doacao_tipo              doacao_doacao_tipo
+  doacao_data_hora         DateTime                      @db.DateTime(0)
+  doacao_status_coleta     Int
+  doacao_resultado_exame   doacao_doacao_resultado_exame
+  doacao_status_devolutiva Int
+  doador_id                Int
+  doacao_status            Int
+  funcionario_id           Int
+  coleta                   coleta[]
+  doador                   doador                        @relation(fields: [doador_id], references: [doador_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doacao_doador")
+  triagem                  triagem[]
+
+  @@index([doador_id], map: "fk_doacao_doador_idx")
+  @@index([funcionario_id], map: "idx_doacao_funcionario")
+}
+
+model doador {
+  doador_id              Int                          @id @default(autoincrement())
+  usuario_id             Int
+  doador_nome            String                       @db.VarChar(255)
+  doador_cpf             String                       @unique(map: "doador_cpf") @db.VarChar(11)
+  doador_data_nascimento DateTime                     @db.Date
+  doador_genero          doador_doador_genero
+  doador_tipo_sanguineo  doador_doador_tipo_sanguineo
+  doador_fator_rh        doador_doador_fator_rh
+  doador_telefone        String                       @db.VarChar(15)
+  doador_email           String                       @db.VarChar(255)
+  doador_cep             String                       @db.VarChar(8)
+  doador_endereco        String                       @db.VarChar(255)
+  doador_status          Int
+  doacao                 doacao[]
+  notificacao            notificacao[]
+}
+
+model notificacao {
+  notificacao_id         Int      @id @default(autoincrement())
+  notificacao_titulo     String   @db.VarChar(100)
+  notificacao_mensagem   String   @db.VarChar(255)
+  notificacao_data_envio DateTime @db.DateTime(0)
+  notificacao_lida       Int      @default(0) @db.TinyInt
+  doador_id              Int
+  doador                 doador   @relation(fields: [doador_id], references: [doador_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notificacao_doador")
+
+  @@index([doador_id], map: "fk_notificacao_doador_idx")
+}
+
+model pergunta_opcoes {
+  pergunta_opcoes_id        Int                @id @default(autoincrement())
+  pergunta_opcoes_descricao String?            @db.VarChar(255)
+  pergunta_opcoes_status    Int
+  triagem_pergunta_id       Int
+  triagem_pergunta          triagem_pergunta   @relation(fields: [triagem_pergunta_id], references: [triagem_pergunta_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_pergunta_opcoes_triagem_pergunta1")
+  triagem_resposta          triagem_resposta[]
+
+  @@index([triagem_pergunta_id], map: "fk_pergunta_opcoes_triagem_pergunta1_idx")
+}
+
+model triagem {
+  triagem_id               Int                @id @default(autoincrement())
+  triagem_peso_kg          Decimal            @db.Decimal(5, 2)
+  triagem_pressao_arterial String             @db.VarChar(10)
+  triagem_hemoglobina      Decimal            @db.Decimal(5, 2)
+  triagem_data             DateTime           @db.DateTime(0)
+  triagem_status           Int
+  doacao_id                Int
+  funcionario_id           Int
+  doacao                   doacao             @relation(fields: [doacao_id], references: [doacao_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_triagem_doacao1")
+  triagem_resposta         triagem_resposta[]
+
+  @@index([doacao_id], map: "fk_triagem_doacao1_idx")
+  @@index([funcionario_id], map: "idx_triagem_funcionario")
+}
+
+model triagem_pergunta {
+  triagem_pergunta_id        Int                @id @default(autoincrement())
+  triagem_pergunta_descricao String             @db.VarChar(255)
+  triagem_pergunta_tipo      String?            @db.VarChar(45)
+  triagem_pergunta_status    Int
+  pergunta_opcoes            pergunta_opcoes[]
+  triagem_resposta           triagem_resposta[]
+}
+
+model triagem_resposta {
+  triagem_resposta_id     Int              @id @default(autoincrement())
+  triagem_resposta_valor  Int              @db.TinyInt
+  triagem_id              Int
+  pergunta_id             Int
+  pergunta_opcoes_id      Int?
+  triagem_resposta_status Int
+  triagem_pergunta        triagem_pergunta @relation(fields: [pergunta_id], references: [triagem_pergunta_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_triagem_resposta_pergunta1")
+  pergunta_opcoes         pergunta_opcoes? @relation(fields: [pergunta_opcoes_id], references: [pergunta_opcoes_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_triagem_resposta_pergunta_opcoes1")
+  triagem                 triagem          @relation(fields: [triagem_id], references: [triagem_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_triagem_resposta_triagem1")
+
+  @@index([pergunta_id], map: "fk_triagem_resposta_pergunta1_idx")
+  @@index([pergunta_opcoes_id], map: "fk_triagem_resposta_pergunta_opcoes1_idx")
+  @@index([triagem_id], map: "fk_triagem_resposta_triagem1_idx")
+}
+
+enum doacao_doacao_tipo {
+  Sangue_Total @map("Sangue Total")
+  Af_rese      @map("Aférese")
+  Aut_loga     @map("Autóloga")
+}
+
+enum doacao_doacao_resultado_exame {
+  Pendente
+  Apto
+  Inapto
+}
+
+enum doador_doador_genero {
+  Feminino
+  Masculino
+  Outros
+}
+
+enum doador_doador_tipo_sanguineo {
+  A
+  B
+  AB
+  O
+}
+
+enum doador_doador_fator_rh {
+  POSITIVO @map("+")
+  NEGATIVO @map("-")
+}

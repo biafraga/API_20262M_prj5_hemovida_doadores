@@ -5,3 +5,8 @@
 .env.local
 /src/generated
 *.log
+/src/generated/prisma
+/.claude
+/.windsurf
+/.agents
+skills-lock.json
