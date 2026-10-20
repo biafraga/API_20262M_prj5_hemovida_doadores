@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -124,8 +124,8 @@ model triagem_resposta {
 
 enum doacao_doacao_tipo {
   Sangue_Total @map("Sangue Total")
-  Af_rese      @map("Aférese")
-  Aut_loga     @map("Autóloga")
+  Aferese      @map("Aférese")
+  Autologa     @map("Autóloga")
 }
 
 enum doacao_doacao_resultado_exame {

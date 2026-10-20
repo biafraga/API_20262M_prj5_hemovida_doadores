@@ -29,7 +29,9 @@ export function validateEnv(config: Record<string, unknown>): EnvironmentVariabl
 
   if (erros.length > 0) {
     const detalhes = erros.map((erro) => Object.values(erro.constraints ?? {}).join('; ')).join('\n');
-    throw new Error(`Configuracao invalida. Revise o seu .env:\n${detalhes}\n`);
+    throw new Error(
+  `Configuracao invalida. Rode com "npm run start:dev" (Infisical) ou crie um .env local:\n${detalhes}\n`,
+);
   }
   return validado;
 }

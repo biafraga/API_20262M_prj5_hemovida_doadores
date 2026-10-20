@@ -2,7 +2,8 @@
 /dist
 *.tsbuildinfo
 .env
-.env.local
+.env.*
+!.env.example
 /src/generated
 *.log
 /src/generated/prisma
