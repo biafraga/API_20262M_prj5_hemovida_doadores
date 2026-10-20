@@ -1,8 +1,8 @@
 import { IsEmail, IsIn, IsInt, IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
 import type { doador_doador_genero, doador_doador_tipo_sanguineo } from '../../generated/prisma/enums';
+import { EhDataReal } from '../../common/validators/eh-data-real.validator';
 import { EhLatin1 } from '../../common/validators/eh-latin1.validator';
 
-// Quem decide se o doador está ativo é o sistema (service), não o cliente.
 export class CreateDoadorDto {
   @IsInt()
   @IsNotEmpty({ message: 'O ID do usuário vinculado é obrigatório' })
@@ -17,7 +17,8 @@ export class CreateDoadorDto {
   @Matches(/^\d{11}$/, { message: 'doador_cpf deve ter exatamente 11 dígitos, sem pontos ou traço' })
   doador_cpf!: string;
 
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'doador_data_nascimento deve estar no formato AAAA-MM-DD' })
+  // Valida o formato E se o dia existe no calendário (2000-02-31 é recusado).
+  @EhDataReal()
   doador_data_nascimento!: string;
 
   @IsIn(['Feminino', 'Masculino', 'Outros'])
