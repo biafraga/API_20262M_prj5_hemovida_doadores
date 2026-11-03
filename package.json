@@ -10,7 +10,7 @@
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:dev": "infisical run --env=dev -- nest start --watch",
+    "start:dev": "npx infisical run --env=dev -- nest start --watch",
     "start:dev:local": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",

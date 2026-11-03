@@ -1,23 +1,36 @@
-FROM node:24-slim
+# Imagem Node.js 24
+FROM node:24-bookworm-slim
 
+# Diretório da aplicação
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# Dependências necessárias ao Prisma
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        openssl \
+        ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @infisical/cli
-
+# Copiar arquivos de dependências
 COPY package*.json ./
 
+# Instalar dependências
 RUN npm ci
 
+# Copiar código-fonte
 COPY . .
 
-RUN DATABASE_URL="mysql://USUARIO:SENHA@edumysql.acesso.rj.senac.br:3306/NOME_DO_BANCO" npx prisma generate
+# Gerar Prisma Client com variável temporária
+RUN DATABASE_URL="placeholder" npx prisma generate && \
+    npm run build && \
+    find dist -name "main.js"
 
-RUN npm run build
+# Configuração da aplicação
+ENV NODE_ENV=development
+ENV PORT=7502
 
-ENV NODE_ENV=production
-
+# Porta da aplicação
 EXPOSE 7502
 
-CMD ["infisical", "run", "--env=dev", "--", "npm", "run", "start:prod"]
+# Inicialização da aplicação
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,19 @@
+services:
+  hemovida-doadores:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: hemovida-doadores:latest
+
+    container_name: hemovida-doadores
+
+    ports:
+      - "7502:7502"
+
+    env_file:
+      - .env
+
+    environment:
+      NODE_ENV: production
+      PORT: "7502"

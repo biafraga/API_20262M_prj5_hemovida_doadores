@@ -1,36 +1,148 @@
-        stage('Instalar Dependencias') {
+pipeline {
+    agent any
+
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
+    environment {
+        APP_NAME = 'hemovida-doadores'
+    }
+
+    stages {
+
+        stage('Checkout GitHub') {
             steps {
-                bat 'npm ci'
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/biafraga/API_20262M_prj5_hemovida_doadores'
+                    ]]
+                ])
             }
         }
 
-        stage('Gerar Prisma Client') {
-            environment {
-                DATABASE_URL = 'mysql://USUARIO:SENHA@edumysql.acesso.rj.senac.br:3306/NOME_DO_BANCO'
-            }
+        stage('Fetch Secrets - Infisical') {
             steps {
-                bat 'npx prisma generate'
+                withCredentials([
+                    string(
+                        credentialsId: 'tokenbeatrizhemovida',
+                        variable: 'INFISICAL_TOKEN'
+                    )
+                ]) {
+                        sh '''
+                            set +x
+                            set -eu
+                            umask 077
+                            rm -f .env
+                        
+                            npx -y @infisical/cli export \
+                                --env="dev" \
+                                --path="/hemovida" \
+                                --token="$INFISICAL_TOKEN" \
+                                > .env
+                        
+                            test -s .env || { echo "ERRO: .env vazio."; exit 1; }
+                        
+                            echo "Variáveis carregadas:"
+                            cut -d= -f1 .env
+                        '''
+                }
             }
         }
 
-        stage('Testes e2e') {
+        stage('Validar Docker Compose') {
             steps {
-                bat 'npm run test:e2e'
+                sh '''
+                    set -eu
+
+                    docker compose config --quiet
+
+                    echo "Docker Compose validado."
+                '''
             }
         }
 
         stage('Construir Imagem Docker') {
             steps {
-                bat 'docker build -t %IMAGE_NAME%:%BUILD_NUMBER% -t %IMAGE_NAME%:latest .'
+                sh '''
+                    set -eu
+
+                    docker compose build
+
+                    echo "Imagem Docker construída."
+                '''
             }
         }
 
-        stage('Fazer Deploy') {
+        stage('Deploy Docker') {
             steps {
-                bat 'docker rm -f %CONTAINER_NAME% || exit 0'
+                sh '''
+                    set -eu
 
-                withCredentials([string(credentialsId: 'INFISICAL_TOKEN_BIA', variable: 'INFISICAL_TOKEN')]) {
-                    bat 'docker run -d --name %CONTAINER_NAME% --restart unless-stopped -p %APP_PORT%:%APP_PORT% -e INFISICAL_TOKEN %IMAGE_NAME%:latest'
-                }
+                    docker compose up -d --no-build \
+                        --force-recreate
+
+                    echo "Deploy executado."
+                '''
             }
         }
+
+        stage('Verificar Container') {
+            steps {
+                sh '''
+                    set -eu
+
+                    echo "Verificando container..."
+
+                    sleep 10
+
+                    RUNNING=$(docker inspect \
+                        --format '{{.State.Running}}' \
+                        "$APP_NAME")
+
+                    if [ "$RUNNING" != "true" ]; then
+                        echo "ERRO: Container não está rodando."
+
+                        docker compose logs --tail=50 \
+                            "$APP_NAME" || true
+
+                        exit 1
+                    fi
+
+                    echo "Container em execução."
+                    docker compose ps
+
+                    echo "Versão do Node.js no container:"
+                    docker exec "$APP_NAME" node -v
+                '''
+            }
+        }
+    }
+
+    post {
+
+        success {
+            echo '''
+            ====================================
+             HEMOVIDA DOADORES
+             DEPLOY EXECUTADO COM SUCESSO
+             PORTA: 7502
+            ====================================
+            '''
+        }
+
+        failure {
+            echo '''
+            ====================================
+             HEMOVIDA DOADORES
+             FALHA NA EXECUÇÃO DO PIPELINE
+            ====================================
+            '''
+        }
+
+    }
+}
