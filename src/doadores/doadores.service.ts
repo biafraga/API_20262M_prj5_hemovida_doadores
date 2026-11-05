@@ -52,6 +52,15 @@ export class DoadoresService {
     if (!doador) throw new NotFoundException(`Doador com o CPF ${cpf} não encontrado.`);
     return doador;
   }
+
+  // GET /doadores/me - o doador logado vê o próprio cadastro (usuario_id = sub do token)
+  async buscarPorUsuarioId(usuarioId: number) {
+    const doador = await this.prisma.doador.findFirst({
+      where: { usuario_id: usuarioId, doador_status: STATUS_ATIVO },
+    });
+    if (!doador) throw new NotFoundException('Você ainda não tem cadastro de doador.');
+    return doador;
+  }
  
   // POST /doadores
   async criar(dto: CreateDoadorDto, solicitante: UsuarioAutenticado) {
