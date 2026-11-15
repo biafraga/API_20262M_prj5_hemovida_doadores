@@ -10,7 +10,8 @@
     "start": "nest start",
     "start:dev": "npx infisical run --env=dev -- nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main"
+    "start:prod": "node dist/main",
+    "token": "infisical run -- node scripts/gerar-token.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

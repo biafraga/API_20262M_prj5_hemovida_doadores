@@ -1,13 +1,12 @@
 // Gera um token de teste, ENQUANTO o microsserviço de usuário não existe.
-// Uso:  npm run token -- ADMIN 1      (perfil e id do usuário)
+// Uso:  npm run token -- ADMIN 1      (perfil e id do usuário). As variáveis vêm do Infisical.
 // Perfis: ADMIN, RECEPCAO, ENFERMAGEM, GESTOR_ESTOQUE, GESTOR_DEMANDA, DOADOR
-require('dotenv').config({ quiet: true });
 const { JwtService } = require('@nestjs/jwt');
 
 const [perfil = 'ADMIN', id = '1'] = process.argv.slice(2);
 
 if (!process.env.JWT_SECRET) {
-  console.error('JWT_SECRET não encontrado. Confira o seu .env');
+  console.error('JWT_SECRET não encontrado. Rode pelo npm run token (Infisical).');
   process.exit(1);
 }
 

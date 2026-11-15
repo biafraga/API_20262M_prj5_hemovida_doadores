@@ -13,24 +13,28 @@ import { UpdateDoadorDto } from './dto/update-doador.dto';
 export class DoadoresController {
   constructor(private readonly doadoresService: DoadoresService) {}
  
+  //devolve a lista paginada
   @Roles(...PERFIS_CONSULTA)
   @Get()
   listar(@Query() paginacao: PaginacaoQueryDto) {
     return this.doadoresService.listar(paginacao);
   }
  
+  //busca pelo CPF, pra recepção.
   @Roles(...PERFIS_CONSULTA)
   @Get('cpf/:cpf')
   buscarPorCpf(@Param('cpf') cpf: string) {
     return this.doadoresService.buscarPorCpf(cpf);
   }
 
+  //devolve o cadastro de quem está logado.
   @Roles(Perfil.DOADOR)
   @Get('me')
   buscarMeu(@UsuarioAtual() solicitante: UsuarioAutenticado) {
     return this.doadoresService.buscarPorUsuarioId(solicitante.sub);
   }
  
+  //busca pelo id
   @Roles(Perfil.DOADOR, ...PERFIS_CONSULTA)
   @Get(':id')
   buscar(@Param('id', ParseIntPipe) id: number, @UsuarioAtual() solicitante: UsuarioAutenticado) {
