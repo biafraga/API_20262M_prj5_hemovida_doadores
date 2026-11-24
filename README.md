@@ -40,9 +40,37 @@ GET http://localhost:3000/health
 | `GET /doadores` | sim | sim | sim | não | não |
 | `GET /doadores/cpf/:cpf` | sim | sim | sim | não | não |
 | `GET /doadores/:id` | sim | sim | sim | só o próprio | não |
-| `POST /doadores` | sim | sim | não | só o próprio perfil | não |
+| `POST /doadores` | pública (sem login) | pública | pública | pública | pública |
 | `PUT /doadores/:id` | sim | sim | não | só o próprio | não |
 | `DELETE /doadores/:id` | sim | sim | não | não | não |
+
+## Integração com o MS4 (Usuários)
+
+O login e os usuários ficam no MS4. O MS1 só confere o token (o `JWT_SECRET` precisa ser o mesmo nos serviços).
+
+**Variáveis novas** (`.env` ou Infisical):
+
+| Variável | Para quê |
+| --- | --- |
+| `SERVICE_KEY` | Segredo compartilhado MS1 e MS4 (mínimo 32 caracteres, o mesmo valor nos dois). Protege as rotas internas. |
+| `MS4_BASE_URL` | Endereço direto do MS4, por exemplo `http://localhost:7503`. Não use o endereço do gateway. |
+
+Sem essas variáveis a API sobe normalmente, mas o cadastro de doador responde 503.
+
+**Cadastro do doador (`POST /doadores`, pública):**
+1. O MS1 valida os dados (idade de 18 a 69 anos) e confere se o CPF já está cadastrado (409).
+2. O MS1 pede ao MS4 que crie o usuário DOADOR e recebe o `usuario_id`.
+3. O MS1 grava o doador com esse `usuario_id`. Se a gravação falhar, pede ao MS4 que desative o usuário criado.
+
+O corpo da requisição **não** aceita mais `usuario_id`.
+
+**Login do doador:** o MS4 recebe CPF e data de nascimento e pergunta ao MS1 por esta rota interna:
+
+| Rota | Quem chama | Resposta |
+| --- | --- | --- |
+| `POST /internal/doadores/validar-login` | só o MS4, com o cabeçalho `x-service-key` | `{ "valido": true }` ou `{ "valido": false }` |
+
+A resposta é a mesma para CPF inexistente, data errada ou doador inativo. Rotas `/internal` não devem ser expostas pelo gateway.
 
 ## Próximos passos
  
