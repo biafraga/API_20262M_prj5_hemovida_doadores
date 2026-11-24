@@ -1,5 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsString, Matches, Max, Min, MinLength, validateSync } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, Matches, Max, Min, MinLength, ValidateIf, validateSync } from 'class-validator';
 
 class EnvironmentVariables {
   @IsString()
@@ -19,6 +19,20 @@ class EnvironmentVariables {
   @Min(1)
   @Max(65535)
   PORT!: number;
+
+  
+  // Integração com o MS4 (Usuários). Opcionais: sem elas a API sobe normalmente, mas o
+  // cadastro de doador e o login de doador respondem 503 (indisponível).
+  @ValidateIf((o: EnvironmentVariables) => !!o.SERVICE_KEY)
+  @IsString()
+  @MinLength(32, { message: 'SERVICE_KEY deve ter no minimo 32 caracteres' })
+  SERVICE_KEY?: string;
+
+  @ValidateIf((o: EnvironmentVariables) => !!o.MS4_BASE_URL)
+  @Matches(/^https?:\/\/[^\s/]+(:\d+)?(\/\S*)?$/, {
+    message: 'MS4_BASE_URL deve ser uma URL como http://localhost:7503',
+  })
+  MS4_BASE_URL?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {

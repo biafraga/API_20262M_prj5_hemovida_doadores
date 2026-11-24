@@ -1,13 +1,10 @@
-import { IsEmail, IsIn, IsInt, IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
 import type { doador_doador_genero, doador_doador_tipo_sanguineo } from '../../generated/prisma/enums';
 import { EhDataReal } from '../../common/validators/eh-data-real.validator';
 import { EhLatin1 } from '../../common/validators/eh-latin1.validator';
 
 export class CreateDoadorDto {
-  @IsInt()
-  @IsNotEmpty({ message: 'O ID do usuário vinculado é obrigatório' })
-  usuario_id!: number;
-
+  
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
