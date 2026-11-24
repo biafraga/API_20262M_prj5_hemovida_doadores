@@ -105,6 +105,19 @@ export class DoadoresService {
       throw erro;
     }
   }
+
+  // POST /internal/doadores/validar-login - o MS4 pergunta se CPF + data de nascimento conferem.
+  // Só responde sim/não. Mesma resposta para "CPF não existe", "data errada" e "doador inativo",
+  // para ninguém descobrir pelo login quais CPFs estão cadastrados.
+  async validarLogin(cpf: string, dataNascimento: string): Promise<{ valido: boolean }> {
+    const doador = await this.prisma.doador.findFirst({
+      where: { doador_cpf: cpf, doador_status: STATUS_ATIVO },
+    });
+    if (!doador) return { valido: false };
+    // O banco guarda só a data (sem hora). Comparamos como texto AAAA-MM-DD, sem fuso horário.
+    const nascimento = doador.doador_data_nascimento.toISOString().slice(0, 10);
+    return { valido: nascimento === dataNascimento };
+  }
  
   // PUT /doadores/:id - atualiza dados cadastrais (a gestão altera qualquer um; o doador, o próprio)
   async atualizar(id: number, dto: UpdateDoadorDto, solicitante: UsuarioAutenticado) {
