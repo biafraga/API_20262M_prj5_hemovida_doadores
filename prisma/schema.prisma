@@ -47,8 +47,8 @@ model doador {
   doador_cpf             String                       @unique(map: "doador_cpf") @db.VarChar(11)
   doador_data_nascimento DateTime                     @db.Date
   doador_genero          doador_doador_genero
-  doador_tipo_sanguineo  doador_doador_tipo_sanguineo
-  doador_fator_rh        doador_doador_fator_rh
+  doador_tipo_sanguineo  doador_doador_tipo_sanguineo?
+  doador_fator_rh        doador_doador_fator_rh?
   doador_telefone        String                       @db.VarChar(15)
   doador_email           String                       @db.VarChar(255)
   doador_cep             String                       @db.VarChar(8)

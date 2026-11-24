@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import type { doador_doador_genero, doador_doador_tipo_sanguineo } from '../../generated/prisma/enums';
 import { EhDataReal } from '../../common/validators/eh-data-real.validator';
 import { EhLatin1 } from '../../common/validators/eh-latin1.validator';
@@ -21,11 +21,14 @@ export class CreateDoadorDto {
   @IsIn(['Feminino', 'Masculino', 'Outros'])
   doador_genero!: doador_doador_genero;
 
+  // Opcional: o doador pode não saber. A Recepção confirma e preenche depois (PUT).
+  @IsOptional()
   @IsIn(['A', 'B', 'AB', 'O'])
-  doador_tipo_sanguineo!: doador_doador_tipo_sanguineo;
+  doador_tipo_sanguineo?: doador_doador_tipo_sanguineo;
 
+  @IsOptional()
   @IsIn(['+', '-'])
-  doador_fator_rh!: string;
+  doador_fator_rh?: string;
 
   @IsString()
   @IsNotEmpty()

@@ -89,9 +89,9 @@ export class DoadoresService {
           doador_cpf: dto.doador_cpf,
           doador_data_nascimento: nascimento,
           doador_genero: dto.doador_genero,
-          doador_tipo_sanguineo: dto.doador_tipo_sanguineo,
+          doador_tipo_sanguineo: dto.doador_tipo_sanguineo ?? null,
           // No banco o valor é '+' ou '-'; no Prisma os nomes são POSITIVO e NEGATIVO.
-          doador_fator_rh: dto.doador_fator_rh === '+' ? 'POSITIVO' : 'NEGATIVO',
+          doador_fator_rh: this.converterFatorRh(dto.doador_fator_rh),
           doador_telefone: dto.doador_telefone,
           doador_email: dto.doador_email,
           doador_cep: dto.doador_cep,
@@ -123,10 +123,21 @@ export class DoadoresService {
   async atualizar(id: number, dto: UpdateDoadorDto, solicitante: UsuarioAutenticado) {
     const doador = await this.buscarAtivoOuFalhar(id); // 404 antes de qualquer outra coisa
     this.garantirAcesso(doador.usuario_id, solicitante, PERFIS_GESTAO);
- 
+
+    // Tipo sanguíneo e fator RH só a Recepção/Admin informam (o dado só é confiável depois do exame).
+    const mexeNoSangue = dto.doador_tipo_sanguineo !== undefined || dto.doador_fator_rh !== undefined;
+    if (mexeNoSangue && !PERFIS_GESTAO.includes(solicitante.role)) {
+      throw new ForbiddenException('Só a Recepção ou o Admin podem informar tipo sanguíneo e fator RH.');
+    }
+
+    const { doador_fator_rh, ...demais } = dto;
     return this.prisma.doador.update({
       where: { doador_id: id },
-      data: dto,
+      data: {
+        ...demais,
+        // '+'/'-' da API viram POSITIVO/NEGATIVO no Prisma. Se não veio, não altera.
+        ...(doador_fator_rh !== undefined && { doador_fator_rh: this.converterFatorRh(doador_fator_rh) }),
+      },
     });
   }
  
@@ -140,6 +151,12 @@ export class DoadoresService {
     return { mensagem: `Doador ${id} inativado com sucesso.` };
   }
  
+  // '+' -> POSITIVO, '-' -> NEGATIVO, ausente -> null (o campo é opcional).
+  private converterFatorRh(valor?: string) {
+    if (valor === undefined) return null;
+    return valor === '+' ? 'POSITIVO' : 'NEGATIVO';
+  }
+
   // Busca um doador ativo ou lança 404. Uso interno: não checa permissão.
   private async buscarAtivoOuFalhar(id: number) {
     const doador = await this.prisma.doador.findFirst({
