@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Perfil, UsuarioAutenticado } from '../auth/tipos/usuario-autenticado';
 import { PaginacaoQueryDto } from '../common/dto/paginacao-query.dto';
@@ -7,6 +7,7 @@ import { UpdateDoadorDto } from './dto/update-doador.dto';
 import { PERFIS_CONSULTA, PERFIS_GESTAO } from './doadores.perfis';
 import { ehDataReal, paraDataUtc } from '../common/helpers/data';
 import { calcularIdade } from '../common/helpers/idade';
+import { Ms4Client } from '../ms4/ms4.client';
 
 // doador_status é um INT no banco. Nossa convenção:
 const STATUS_ATIVO = 1;
@@ -18,7 +19,10 @@ const IDADE_MAXIMA = 69;
  
 @Injectable()
 export class DoadoresService {
-  constructor(private readonly prisma: PrismaService) {}
+ constructor(
+    private readonly prisma: PrismaService,
+    private readonly ms4: Ms4Client,
+  ) {}
  
   // GET /doadores?page=1&limit=10 - lista só os doadores ativos, de forma paginada
   async listar({ page, limit }: PaginacaoQueryDto) {
@@ -62,32 +66,44 @@ export class DoadoresService {
     return doador;
   }
  
-  // POST /doadores
-  async criar(dto: CreateDoadorDto, solicitante: UsuarioAutenticado) {
-    // Um doador só pode cadastrar o PRÓPRIO perfil. A equipe cadastra qualquer um.
-    if (solicitante.role === Perfil.DOADOR && dto.usuario_id !== solicitante.sub) {
-      throw new ForbiddenException('Você só pode cadastrar o seu próprio perfil de doador');
-    }
- 
+    // POST /doadores - cadastro público. Ordem importa: validar tudo o que é nosso ANTES de
+  // criar o usuário no MS4, para só chamar o MS4 quando o cadastro tem chance de dar certo.
+  // valida a idade, confere se o CPF já está cadastrado, pede ao MS4 que crie o usuário, grava o doador com o id que o MS4 devolveu, e, se a gravação falhar, pede ao MS4 que desative o usuário criado.
+  async criar(dto: CreateDoadorDto) {
     const nascimento = this.validarIdade(dto.doador_data_nascimento);
- 
-    return this.prisma.doador.create({
-      data: {
-        usuario_id: dto.usuario_id,
-        doador_nome: dto.doador_nome,
-        doador_cpf: dto.doador_cpf,
-        doador_data_nascimento: nascimento,
-        doador_genero: dto.doador_genero,
-        doador_tipo_sanguineo: dto.doador_tipo_sanguineo,
-        // No banco o valor é '+' ou '-'; no Prisma os nomes são POSITIVO e NEGATIVO.
-        doador_fator_rh: dto.doador_fator_rh === '+' ? 'POSITIVO' : 'NEGATIVO',
-        doador_telefone: dto.doador_telefone,
-        doador_email: dto.doador_email,
-        doador_cep: dto.doador_cep,
-        doador_endereco: dto.doador_endereco,
-        doador_status: STATUS_ATIVO,
-      },
-    });
+
+    // Se o CPF já está cadastrado, paramos aqui. Sem isso, o MS4 devolveria o usuário que já
+    // existe e, se o INSERT falhasse, desativaríamos o usuário de um doador de verdade.
+    const jaExiste = await this.prisma.doador.findFirst({ where: { doador_cpf: dto.doador_cpf } });
+    if (jaExiste) throw new ConflictException('Já existe um doador cadastrado com este CPF.');
+
+    // O nome no MS4 é só um rótulo (limite de 150 caracteres; aqui o limite é 255).
+    
+    const usuario = await this.ms4.criarUsuarioDoador(dto.doador_cpf, dto.doador_nome.slice(0, 150));
+
+    try {
+      return await this.prisma.doador.create({
+        data: {
+          usuario_id: usuario.id,
+          doador_nome: dto.doador_nome,
+          doador_cpf: dto.doador_cpf,
+          doador_data_nascimento: nascimento,
+          doador_genero: dto.doador_genero,
+          doador_tipo_sanguineo: dto.doador_tipo_sanguineo,
+          // No banco o valor é '+' ou '-'; no Prisma os nomes são POSITIVO e NEGATIVO.
+          doador_fator_rh: dto.doador_fator_rh === '+' ? 'POSITIVO' : 'NEGATIVO',
+          doador_telefone: dto.doador_telefone,
+          doador_email: dto.doador_email,
+          doador_cep: dto.doador_cep,
+          doador_endereco: dto.doador_endereco,
+          doador_status: STATUS_ATIVO,
+        },
+      });
+    } catch (erro) {
+      // Desfaz no MS4 só se o usuário foi criado agora (se já existia, não é nosso para desfazer).
+      if (usuario.criado) await this.ms4.desativarUsuario(usuario.id);
+      throw erro;
+    }
   }
  
   // PUT /doadores/:id - atualiza dados cadastrais (a gestão altera qualquer um; o doador, o próprio)

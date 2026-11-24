@@ -7,6 +7,7 @@ import { DoadoresService } from './doadores.service';
 import { PERFIS_CONSULTA, PERFIS_GESTAO } from './doadores.perfis';
 import { CreateDoadorDto } from './dto/create-doador.dto';
 import { UpdateDoadorDto } from './dto/update-doador.dto';
+import { Public } from '../auth/decorators/public.decorator';
 
 // Todas as rotas exigem token (guard global). O @Roles restringe por perfil.
 @Controller('doadores')
@@ -41,10 +42,11 @@ export class DoadoresController {
     return this.doadoresService.buscarPorId(id, solicitante);
   }
  
-  @Roles(Perfil.DOADOR, ...PERFIS_GESTAO)
+    // Pública: o doador se cadastra sozinho, antes de ter login. O usuário dele é criado no MS4.
+  @Public()
   @Post()
-  criar(@Body() dto: CreateDoadorDto, @UsuarioAtual() solicitante: UsuarioAutenticado) {
-    return this.doadoresService.criar(dto, solicitante);
+  criar(@Body() dto: CreateDoadorDto) {
+    return this.doadoresService.criar(dto);
   }
 
   @Roles(Perfil.DOADOR, ...PERFIS_GESTAO)
