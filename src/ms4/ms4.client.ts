@@ -15,6 +15,14 @@ export interface UsuarioDoadorCriado {
   criado: boolean;
 }
 
+// Resultado do diagnóstico da ligação com o MS4 (usado só pelo GET /health?integracao=1).
+export type StatusMs4 =
+  | 'ok'
+  | 'nao_configurado'
+  | 'inacessivel'
+  | 'chave_recusada'
+  | 'resposta_inesperada';
+
 // Conversa com o MS4 (Usuários) pelas rotas INTERNAS, protegidas pelo cabeçalho x-service-key.
 // Estas rotas NÃO passam pelo gateway: o endereço (MS4_BASE_URL) aponta direto para o MS4.
 @Injectable()
@@ -54,6 +62,28 @@ export class Ms4Client {
       }
     } catch {
       this.logger.error(`Não foi possível desativar o usuário ${usuarioId} (MS4 fora do ar)`);
+    }
+  }
+
+  // Diagnóstico da ligação com o MS4, sem criar nem alterar nada. Chama a rota interna de
+  // desativar com o id 0, que nunca existe: se a chave estiver certa o MS4 responde 404;
+  // se a chave estiver errada, 401. Só devolve uma palavra de status, nunca endereço ou chave.
+  async verificarConexao(): Promise<StatusMs4> {
+    const baseUrl = this.config.get<string>('MS4_BASE_URL');
+    const chave = this.config.get<string>('SERVICE_KEY');
+    if (!baseUrl || !chave) return 'nao_configurado';
+
+    try {
+      const resposta = await fetch(`${baseUrl.replace(/\/$/, '')}/internal/usuarios/0/desativar`, {
+        method: 'POST',
+        headers: { 'x-service-key': chave },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (resposta.status === 404) return 'ok';
+      if (resposta.status === 401 || resposta.status === 403) return 'chave_recusada';
+      return 'resposta_inesperada';
+    } catch {
+      return 'inacessivel';
     }
   }
 
